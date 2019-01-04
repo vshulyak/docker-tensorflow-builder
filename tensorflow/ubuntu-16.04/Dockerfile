@@ -7,6 +7,7 @@ RUN apt update && apt install -y \
     wget \
     libjpeg-dev \
     openjdk-8-jdk \
+    libc-ares-dev \
     && rm -rf /var/lib/lists/*
 
 # Install Anaconda

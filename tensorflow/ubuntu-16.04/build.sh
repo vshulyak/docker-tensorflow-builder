@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -e
 
+
+# export TF_VERSION_GIT_TAG=v1.12.0
+# export PYTHON_VERSION=3.6.8
+# export USE_GPU=0
+#
+# export TF_VERSION_GIT_TAG=v1.12.0
+# export PYTHON_VERSION=3.6.8
+# export USE_GPU=1
+# export CUDA_VERSION=9.2
+# export CUDNN_VERSION=7.1
+
+
 export PATH="/conda/bin:/usr/bin:$PATH"
 
 if [ "$USE_GPU" -eq "1" ]; then
@@ -12,8 +24,10 @@ gcc --version
 # Install an appropriate Python environment
 conda create --yes -n tensorflow python==$PYTHON_VERSION
 source activate tensorflow
-conda install --yes numpy wheel bazel
-conda install --yes -c conda-forge keras-applications
+
+# Bazel 0.18.0 is required due to bugs in TF 1.12.0
+conda install --yes six numpy wheel mock bazel==0.18.0
+conda install --yes -c conda-forge keras-applications==1.0.6 keras-preprocessing==1.0.5
 
 # Compile TensorFlow
 
@@ -80,13 +94,23 @@ fi
 if [ "$USE_GPU" -eq "1" ]; then
 
 	bazel build --config=opt \
+			    --config=mkl \
 	    		--config=cuda \
+					--copt=-msse2 --copt=-msse3 --copt=-msse4.2 --copt=-msse4.1 --copt=-mavx --copt=-mavx2 --copt=-mfma \
+					--copt=-mfpmath=both \
+					--define=grpc_no_ares=true \
 	    		--action_env="LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" \
 	    		//tensorflow/tools/pip_package:build_pip_package
 
 else
-
+  # SSE4.1 SSE4.2 AVX AVX2 FMA – for macbook
+	# -march=native enables all the options your CPU supports, so it makes -mavx512f -mavx2 -mavx -mfma -msse4.2 redundant.
+	# TODO: --config=nohdfs --config=noignite --config=nokafka --config=nonccl \
 	bazel build --config=opt \
+	        --config=mkl \
+					--copt=-msse2 --copt=-msse3 --copt=-msse4.2 --copt=-msse4.1 --copt=-mavx --copt=-mavx2 --copt=-mfma \
+					--copt=-mfpmath=both \
+	        --define=grpc_no_ares=true \
 			    --action_env="LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" \
 			    //tensorflow/tools/pip_package:build_pip_package
 
